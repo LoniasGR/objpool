@@ -47,8 +47,10 @@ classes in the objpool module.
 # Support running under a gevent-monkey-patched environment
 # if the "monkey" argument is specified in the command line.
 import sys
+
 if "monkey" in sys.argv:
     from gevent import monkey
+
     monkey.patch_all()
     sys.argv.pop(sys.argv.index("monkey"))
 
@@ -63,13 +65,8 @@ from objpool import ObjectPool, PoolLimitError, PoolVerificationError
 from objpool.http import PooledHTTPConnection, HTTPConnectionPool
 from objpool.http import _pools as _http_pools
 
-# Use backported unittest functionality if Python < 2.7
-try:
-    import unittest2 as unittest
-except ImportError:
-    if sys.version_info < (2, 7):
-        raise Exception("The unittest2 package is required for Python < 2.7")
-    import unittest
+
+import unittest
 
 
 from threading import Lock
@@ -93,7 +90,7 @@ class NumbersPool(ObjectPool):
 
     # set this to _pool_create_unsafe to check
     # the thread-safety test
-    #_pool_create = _pool_create_unsafe
+    # _pool_create = _pool_create_unsafe
     _pool_create = _pool_create_safe
 
     def _pool_verify(self, obj):
@@ -125,7 +122,7 @@ class ObjectPoolTestCase(unittest.TestCase):
         self.assertRaises(NotImplementedError, pool._pool_create)
 
     def test_get_with_factory(self):
-        obj_generator = iter(range(10)).next
+        obj_generator = iter(list(range(10))).__next__
         pool = ObjectPool(3, create=obj_generator)
         self.assertEqual(pool.pool_get(), 0)
         self.assertEqual(pool.pool_get(), 1)
@@ -133,7 +130,8 @@ class ObjectPoolTestCase(unittest.TestCase):
 
     def test_put_with_factory(self):
         cleaned_objects = []
-        pool = ObjectPool(3,
+        pool = ObjectPool(
+            3,
             create=[2, 1, 0].pop,
             verify=lambda o: o % 2 == 0,
             cleanup=cleaned_objects.append,
@@ -161,23 +159,25 @@ class NumbersPoolTestCase(unittest.TestCase):
     def test_seq_allocate_all(self):
         """Test allocation and deallocation of all pool objects"""
         n = []
-        for _ in xrange(0, self.N):
+        for _ in range(0, self.N):
             n.append(self.numbers.pool_get())
-        self.assertEqual(n, range(0, self.N))
+        self.assertEqual(n, list(range(0, self.N)))
         for i in n:
             self.numbers.pool_put(i)
         self.assertEqual(self.numbers._set, set(n))
 
     def test_parallel_allocate_all(self):
         """Allocate all pool objects in parallel"""
+
         def allocate_one(pool, results, index):
             n = pool.pool_get()
             results[index] = n
 
         results = [None] * self.N
-        threads = [threading.Thread(target=allocate_one,
-                                    args=(self.numbers, results, i))
-                   for i in xrange(0, self.N)]
+        threads = [
+            threading.Thread(target=allocate_one, args=(self.numbers, results, i))
+            for i in range(0, self.N)
+        ]
 
         for t in threads:
             t.start()
@@ -185,25 +185,23 @@ class NumbersPoolTestCase(unittest.TestCase):
             t.join()
 
         # This nonblocking pool_get() should fail
-        self.assertRaises(PoolLimitError, self.numbers.pool_get,
-                          blocking=False)
-        self.assertEqual(sorted(results), range(0, self.N))
+        self.assertRaises(PoolLimitError, self.numbers.pool_get, blocking=False)
+        self.assertEqual(sorted(results), list(range(0, self.N)))
 
     def test_allocate_no_create(self):
         """Allocate objects from the pool without creating them"""
-        for i in xrange(0, self.N):
+        for i in range(0, self.N):
             self.assertIsNone(self.numbers.pool_get(create=False))
 
         # This nonblocking pool_get() should fail
-        self.assertRaises(PoolLimitError, self.numbers.pool_get,
-                          blocking=False)
+        self.assertRaises(PoolLimitError, self.numbers.pool_get, blocking=False)
 
     def test_pool_cleanup_returns_failure(self):
         """Put a broken object, test a new one is retrieved eventually"""
         n = []
-        for _ in xrange(0, self.N):
+        for _ in range(0, self.N):
             n.append(self.numbers.pool_get())
-        self.assertEqual(n, range(0, self.N))
+        self.assertEqual(n, list(range(0, self.N)))
 
         del n[-1:]
         self.numbers.pool_put(-1)  # This is a broken object
@@ -212,6 +210,7 @@ class NumbersPoolTestCase(unittest.TestCase):
 
     def test_parallel_get_blocks(self):
         """Test threads block if no object left in the pool"""
+
         def allocate_one_and_sleep(pool, sec, result, index):
             n = pool.pool_get()
             time.sleep(sec)
@@ -220,9 +219,12 @@ class NumbersPoolTestCase(unittest.TestCase):
 
         nr_threads = 2 * self.N + 1
         results = [None] * nr_threads
-        threads = [threading.Thread(target=allocate_one_and_sleep,
-                                    args=(self.numbers, self.SEC, results, i))
-                   for i in xrange(nr_threads)]
+        threads = [
+            threading.Thread(
+                target=allocate_one_and_sleep, args=(self.numbers, self.SEC, results, i)
+            )
+            for i in range(nr_threads)
+        ]
 
         # This should take 3 * SEC seconds
         start = time.time()
@@ -232,7 +234,7 @@ class NumbersPoolTestCase(unittest.TestCase):
             t.join()
         diff = time.time() - start
         self.assertTrue(diff > 3 * self.SEC)
-        self.assertLess((diff - 3 * self.SEC) / 3 * self.SEC, .5)
+        self.assertLess((diff - 3 * self.SEC) / 3 * self.SEC, 0.5)
 
         freq = defaultdict(int)
         for r in results:
@@ -248,7 +250,7 @@ class NumbersPoolTestCase(unittest.TestCase):
 
     def test_verify_create(self):
         numbers = self.numbers
-        nums = [numbers.pool_get() for _ in xrange(self.N)]
+        nums = [numbers.pool_get() for _ in range(self.N)]
         for num in nums:
             numbers.pool_put(num)
 
@@ -262,7 +264,7 @@ class NumbersPoolTestCase(unittest.TestCase):
 
     def test_verify_error(self):
         numbers = self.numbers
-        nums = [numbers.pool_get() for _ in xrange(self.N)]
+        nums = [numbers.pool_get() for _ in range(self.N)]
         for num in nums:
             numbers.pool_put(num)
 
@@ -274,7 +276,7 @@ class NumbersPoolTestCase(unittest.TestCase):
 
     def test_create_false(self):
         numpool = self.numbers
-        for _ in xrange(self.N + 1):
+        for _ in range(self.N + 1):
             none = numpool.pool_get(create=False)
             self.assertEqual(none, None)
             numpool.pool_put(None)
@@ -297,8 +299,9 @@ class ThreadSafetyTestCase(unittest.TestCase):
         pool = self.pool
         N = self.size
         results = [None] * N
-        threads = [threading.Thread(target=create, args=(pool, results, i))
-                   for i in xrange(N)]
+        threads = [
+            threading.Thread(target=create, args=(pool, results, i)) for i in range(N)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -308,27 +311,27 @@ class ThreadSafetyTestCase(unittest.TestCase):
         for r in results:
             freq[r] += 1
 
-        mults = [(n, c) for n, c in freq.items() if c > 1]
+        mults = [(n, c) for n, c in list(freq.items()) if c > 1]
         if mults:
-            #print mults
+            # print mults
             raise AssertionError("_pool_create() is not thread safe")
 
 
 class TestHTTPConnectionTestCase(unittest.TestCase):
     def setUp(self):
-        #netloc = "127.0.0.1:9999"
-        #scheme='http'
-        #self.pool = HTTPConnectionPool(
+        # netloc = "127.0.0.1:9999"
+        # scheme='http'
+        # self.pool = HTTPConnectionPool(
         #                netloc=netloc,
         #                scheme=scheme,
         #                pool_size=1)
-        #key = (scheme, netloc)
-        #_http_pools[key] = pool
+        # key = (scheme, netloc)
+        # _http_pools[key] = pool
 
         _http_pools.clear()
 
         self.host = "127.0.0.1"
-        self.port = 9999
+        self.port = 10000
         self.netloc = "%s:%s" % (self.host, self.port)
         self.scheme = "http"
         self.key = (self.scheme, self.netloc)
@@ -344,8 +347,7 @@ class TestHTTPConnectionTestCase(unittest.TestCase):
         sock.close()
 
     def test_double_release(self):
-        pooled = PooledHTTPConnection(self.netloc, self.scheme,
-                                      pool_key='test_key')
+        pooled = PooledHTTPConnection(self.netloc, self.scheme, pool_key="test_key")
         pooled.acquire()
         pool = pooled._pool
         cached_pool = _http_pools[("test_key", self.scheme, self.netloc)]
@@ -366,13 +368,15 @@ class TestHTTPConnectionTestCase(unittest.TestCase):
         self.assertEqual(poolsize, len(pool._set))
 
     def test_distinct_pools_per_scheme(self):
-        with PooledHTTPConnection("127.0.0.1", "http",
-                                  attach_context=True, pool_key='test2') as conn:
+        with PooledHTTPConnection(
+            "127.0.0.1", "http", attach_context=True, pool_key="test2"
+        ) as conn:
             pool = conn._pool_context._pool
             self.assertTrue(pool is _http_pools[("test2", "http", "127.0.0.1")])
 
-        with PooledHTTPConnection("127.0.0.1", "https",
-                                  attach_context=True, pool_key='test2') as conn2:
+        with PooledHTTPConnection(
+            "127.0.0.1", "https", attach_context=True, pool_key="test2"
+        ) as conn2:
             pool2 = conn2._pool_context._pool
             self.assertTrue(conn is not conn2)
             self.assertNotEqual(pool, pool2)
@@ -397,13 +401,10 @@ class TestHTTPConnectionTestCase(unittest.TestCase):
         pool = pooled._pool
         conn.request("GET", "/")
         serversock, addr = self.sock.accept()
-        serversock.send("HTTP/1.1 200 OK\n"
-                        "Content-Length: 6\n"
-                        "\n"
-                        "HELLO\n")
+        serversock.send(b"HTTP/1.1 200 OK\nContent-Length: 6\n\nHELLO\n")
         time.sleep(0.3)
         # We would read this message like this
-        #resp = conn.getresponse()
+        # resp = conn.getresponse()
         # but we won't so the connection is dirty
         pooled.release()
 
@@ -414,17 +415,17 @@ class TestHTTPConnectionTestCase(unittest.TestCase):
         class TestError(Exception):
             pass
 
-        for i in xrange(10):
+        for i in range(10):
             pool = None
             try:
                 with PooledHTTPConnection(
-                        self.netloc, self.scheme,
-                        size=1, attach_context=True) as conn:
+                    self.netloc, self.scheme, size=1, attach_context=True
+                ) as conn:
                     pool = conn._pool_context._pool
                     raise TestError()
             except TestError:
                 self.assertTrue(pool is not None)
-                self.assertEqual(pool._semaphore._Semaphore__value, 1)
+                self.assertEqual(pool._semaphore._value, 1)
 
 
 class ProcessSafetyTestCase(unittest.TestCase):
@@ -441,6 +442,7 @@ class ProcessSafetyTestCase(unittest.TestCase):
         if self.exit_at_tear_down:
             from signal import SIGKILL
             from os import getpid, kill
+
             kill(getpid(), SIGKILL)
 
     def test_fork(self):
@@ -454,5 +456,5 @@ class ProcessSafetyTestCase(unittest.TestCase):
             self.pool.pool_get()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

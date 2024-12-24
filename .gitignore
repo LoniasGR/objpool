@@ -6,3 +6,5 @@ MANIFEST
 # Ignore automatically updated version file
 objpool/version.py
 .coverage
+objpool.egg-info
+__pycache__

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "objpool"
+requires-python = ">=3.8"
+license.file="LICENSE.txt"
+readme = "README.md"
+description="An object pooling library"
+version="0.4"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
