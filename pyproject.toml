@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "objpool"
 requires-python = ">=3.8"
-license.file="LICENSE.txt"
+license.file = "LICENSE.txt"
 readme = "README.md"
-description="An object pooling library"
-version="0.4"
+description = "An object pooling library"
+version = "0.5"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
